@@ -2,7 +2,6 @@ import { useState, useEffect, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { AuthContext } from '../context/AuthContext';
-// We only need the combined service now
 import transportBookingService from '../services/transportBookingService';
 import { FaTicketAlt, FaCalendarCheck, FaClock, FaMapMarkerAlt, FaPlane, FaTrain, FaBus, FaUserFriends } from 'react-icons/fa';
 
@@ -22,17 +21,28 @@ const Dashboard = () => {
 
         const fetchAllBookings = async () => {
             try {
-                // FIXED: Changed bookingService to transportBookingService
+                // Fetch Darshan Tickets
                 const darshanData = await transportBookingService.getMyBookings(user.token);
-                // Safety check to ensure we always have an array
-                setBookings(Array.isArray(darshanData) ? darshanData : []);
+                
+                // FIXED: Smartly extract the array preventing crashes
+                const actualDarshanTickets = Array.isArray(darshanData) 
+                    ? darshanData 
+                    : (darshanData.data || darshanData.bookings || []);
+                
+                setBookings(actualDarshanTickets);
 
+                // Fetch Travel Tickets
                 const travelData = await transportBookingService.getMyTransportBookings(user.token);
-                setTransportBookings(Array.isArray(travelData) ? travelData : []);
+                
+                const actualTravelTickets = Array.isArray(travelData) 
+                    ? travelData 
+                    : (travelData.data || travelData.bookings || []);
+                
+                setTransportBookings(actualTravelTickets);
 
                 setLoading(false);
             } catch (error) {
-                console.error("Fetch error:", error);
+                console.error("Dashboard Fetch Error:", error);
                 toast.error('Failed to fetch your dashboard data');
                 setLoading(false);
             }
@@ -83,7 +93,7 @@ const Dashboard = () => {
                                         <FaUserFriends className="me-2" /> <strong>Devotees:</strong> &nbsp;{booking.numberOfTickets}
                                     </p>
 
-                                    {/* NEW: Displaying the Devotee details from your modal! */}
+                                    {/* Displaying the Devotee details from your modal */}
                                     {booking.passengers && booking.passengers.length > 0 && (
                                         <div className="mt-3 p-3 bg-light rounded border">
                                             <h6 className="fw-bold text-secondary mb-2">Devotee Details:</h6>

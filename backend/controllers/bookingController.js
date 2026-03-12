@@ -6,7 +6,8 @@ const DarshanSlot = require('../models/DarshanSlot');
 // @access  Private (Any authenticated user)
 const createBooking = async (req, res) => {
     try {
-        const { slotId, numberOfTickets } = req.body;
+        // FIXED: Extract passengers from the frontend request
+        const { slotId, numberOfTickets, passengers } = req.body;
 
         // 1. Find the slot the user wants to book
         const slot = await DarshanSlot.findById(slotId);
@@ -24,9 +25,10 @@ const createBooking = async (req, res) => {
 
         // 3. Create the booking document
         const booking = new Booking({
-            userId: req.user.id, // Comes from our protect middleware
+            userId: req.user._id, // FIXED: Strictly bind to the logged-in user's database ID
             slotId,
-            numberOfTickets
+            numberOfTickets,
+            passengers // FIXED: Save the devotee names to the database
         });
 
         const createdBooking = await booking.save();
@@ -46,11 +48,11 @@ const createBooking = async (req, res) => {
 // @access  Private
 const getUserBookings = async (req, res) => {
     try {
-        // Find bookings for this user and populate the slot details
-        const bookings = await Booking.find({ userId: req.user.id })
+        // FIXED: Find bookings strictly for req.user._id
+        const bookings = await Booking.find({ userId: req.user._id })
             .populate({
                 path: 'slotId',
-                populate: { path: 'templeId', select: 'name location' } // Nested population to get temple info
+                populate: { path: 'templeId', select: 'name location' } 
             });
 
         res.status(200).json(bookings);
@@ -70,8 +72,8 @@ const cancelBooking = async (req, res) => {
             return res.status(404).json({ message: 'Booking not found' });
         }
 
-        // Ensure the user cancelling owns the booking (unless they are an admin)
-        if (booking.userId.toString() !== req.user.id && req.user.role !== 'ADMIN') {
+        // Ensure the user cancelling owns the booking
+        if (booking.userId.toString() !== req.user._id.toString() && req.user.role !== 'ADMIN') {
             return res.status(403).json({ message: 'Not authorized to cancel this booking' });
         }
 
@@ -83,7 +85,7 @@ const cancelBooking = async (req, res) => {
         booking.status = 'CANCELLED';
         await booking.save();
 
-        // 2. Restore the available tickets in the corresponding slot
+        // 2. Restore the available tickets
         const slot = await DarshanSlot.findById(booking.slotId);
         if (slot) {
             slot.availableTickets += booking.numberOfTickets;

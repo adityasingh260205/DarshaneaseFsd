@@ -16,6 +16,12 @@ const bookingSchema = new mongoose.Schema({
         required: [true, 'Please specify the number of tickets'],
         min: 1
     },
+    // NEW: We must define the passengers array so MongoDB saves the devotees
+    passengers: [{
+        name: String,
+        age: Number,
+        sex: String
+    }],
     status: {
         type: String,
         enum: ['CONFIRMED', 'CANCELLED'],
